@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cover Letter Assistant — AI-powered</title>
+
+<!-- ===================================================================
+     COVER LETTER ASSISTANT (versao profissional)
+     A chave da OpenAI fica escondida num Cloudflare Worker.
+     Esta tela so fala com o teu Worker.
+
+     >>> UNICA COISA PRA VOCE TROCAR: <<<
+     La embaixo no <script>, na linha  const API_URL = "..."
+     cola a URL do teu Worker (algo como
+     https://cover-letter-api.SEU-NOME.workers.dev)
+==================================================================== -->
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✍️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --ink:#0E1518; --panel:#14201F; --panel-2:#182726;
+    --signal:#F2A93B; --wire:#3A5A57; --wire-dim:#26403D;
+    --hi:#EAF0EC; --lo:#8FA6A0; --danger:#E8846B; --maxw:960px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);color:var(--hi);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.6;
+    -webkit-font-smoothing:antialiased;padding:0 24px 80px;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;font-size:.72rem;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--signal);
+  }
+  header{padding:56px 0 32px;border-bottom:1px solid var(--wire-dim);margin-bottom:36px;}
+  header h1{
+    font-family:"Archivo",sans-serif;font-weight:900;
+    font-size:clamp(1.9rem,5vw,2.9rem);letter-spacing:-.02em;
+    margin:14px 0 10px;line-height:1.05;
+  }
+  header p{color:var(--lo);max-width:600px;margin:0;font-size:1.02rem;}
+  header .by{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--wire);margin-top:18px;}
+  header .by a{color:var(--signal);text-decoration:none;}
+  header .by a:hover{text-decoration:underline;}
+  .flow{display:flex;align-items:center;gap:10px;margin:22px 0 4px;flex-wrap:wrap;}
+  .flow .step{
+    font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--lo);
+    border:1px solid var(--wire-dim);border-radius:3px;padding:5px 11px;background:var(--panel);
+  }
+  .flow .arw{color:var(--wire);font-size:.9rem;}
+  .panel{background:var(--panel);border:1px solid var(--wire-dim);border-radius:8px;padding:22px;margin-bottom:20px;}
+  label.field{display:block;margin-bottom:18px;}
+  label.field:last-child{margin-bottom:0;}
+  .field .lab{
+    font-family:"IBM Plex Mono",monospace;font-size:.76rem;letter-spacing:.04em;
+    color:var(--hi);display:block;margin-bottom:7px;
+  }
+  .field .hint{color:var(--lo);font-size:.82rem;font-weight:400;}
+  textarea,select{
+    width:100%;background:var(--ink);color:var(--hi);border:1px solid var(--wire);
+    border-radius:6px;padding:12px 14px;font-family:"IBM Plex Sans",sans-serif;
+    font-size:.95rem;line-height:1.5;resize:vertical;
+  }
+  textarea:focus,select:focus{outline:none;border-color:var(--signal);}
+  textarea{min-height:130px;}
+  .row{display:flex;gap:16px;flex-wrap:wrap;}
+  .row .field{flex:1;min-width:180px;}
+  .btn{
+    font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:.9rem;
+    background:var(--signal);color:var(--ink);border:none;border-radius:6px;
+    padding:14px 26px;cursor:pointer;letter-spacing:.02em;transition:transform .12s,opacity .12s;
+  }
+  .btn:hover{transform:translateY(-2px);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+  .btn-ghost{background:transparent;color:var(--signal);border:1px solid var(--wire);}
+  .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+  #out-panel{display:none;}
+  #out-panel.show{display:block;}
+  .out-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
+  .out-head h2{font-family:"Archivo",sans-serif;font-weight:700;font-size:1.2rem;margin:0;}
+  #output{
+    white-space:pre-wrap;background:var(--ink);border:1px solid var(--wire-dim);
+    border-radius:6px;padding:20px;font-size:.96rem;line-height:1.7;color:var(--hi);
+  }
+  .err{color:var(--danger);font-size:.9rem;margin-top:12px;font-family:"IBM Plex Mono",monospace;}
+  .dots span{animation:blink 1.2s infinite;}
+  .dots span:nth-child(2){animation-delay:.2s;}
+  .dots span:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,60%,100%{opacity:.25;}30%{opacity:1;}}
+  footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--wire-dim);
+    font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--lo);}
+  footer a{color:var(--signal);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">AI tool · built by Raul Rodrigues</span>
+    <h1>Cover Letter Assistant</h1>
+    <p>Paste a job description and a short summary of yourself. The assistant writes a tailored cover letter you can edit and send — in seconds.</p>
+    <div class="flow">
+      <span class="step">Job post</span><span class="arw">→</span>
+      <span class="step">Your background</span><span class="arw">→</span>
+      <span class="step">AI writes</span><span class="arw">→</span>
+      <span class="step">Cover letter</span>
+    </div>
+    <div class="by">github.com/RaulRodriguexz · <a href="https://raulrodriguexz.github.io" target="_blank" rel="noopener">portfolio</a></div>
+  </header>
+
+  <!-- INPUTS -->
+  <div class="panel">
+    <label class="field">
+      <span class="lab">Job description <span class="hint">— paste the posting</span></span>
+      <textarea id="job" placeholder="e.g. We are hiring a Customer Support Associate in Dublin..."></textarea>
+    </label>
+    <label class="field">
+      <span class="lab">About you <span class="hint">— skills, experience, why you fit</span></span>
+      <textarea id="about" placeholder="e.g. Self-taught in AI automation (Python, LLM APIs, n8n). Built a portfolio of automation projects. Reliable, fast learner, based in Dublin..."></textarea>
+    </label>
+    <div class="row">
+      <label class="field">
+        <span class="lab">Tone</span>
+        <select id="tone">
+          <option value="professional and confident">Professional</option>
+          <option value="warm and enthusiastic">Enthusiastic</option>
+          <option value="concise and direct">Concise</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="lab">Length</span>
+        <select id="length">
+          <option value="around 150 words">Short (~150 words)</option>
+          <option value="around 250 words">Medium (~250 words)</option>
+          <option value="around 350 words">Long (~350 words)</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="btn" id="go">Generate cover letter</button>
+      <span id="status" class="hint" style="color:var(--lo);"></span>
+    </div>
+    <div id="err" class="err"></div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="panel" id="out-panel">
+    <div class="out-head">
+      <h2>Your cover letter</h2>
+      <button class="btn btn-ghost" id="copy">Copy</button>
+    </div>
+    <div id="output"></div>
+  </div>
+
+  <footer>
+    Built with vanilla JS + a Cloudflare Worker + the OpenAI API · <a href="https://raulrodriguexz.github.io" target="_blank" rel="noopener">raulrodriguexz.github.io</a>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+//  >>> TROQUE ESTA LINHA <<<
+//  Cola aqui a URL do teu Cloudflare Worker.
+// ============================================================
+const API_URL = "PASTE_YOUR_WORKER_URL_HERE";
+
+const $ = (id) => document.getElementById(id);
+$("go").addEventListener("click", gerar);
+$("copy").addEventListener("click", copiar);
+
+async function gerar() {
+  const job = $("job").value.trim();
+  const about = $("about").value.trim();
+  const tone = $("tone").value;
+  const length = $("length").value;
+
+  limparErro();
+  if (!job)   return erro("Paste the job description first.");
+  if (!about) return erro("Add a short summary about yourself first.");
+  if (API_URL.includes("PASTE_YOUR")) return erro("Set the Worker URL in the code first.");
+
+  travar(true);
+  mostrarStatus(true);
+
+  try {
+    // A tela chama o WORKER (nao a OpenAI). A chave fica escondida la.
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job, about, tone, length })
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || ("Request failed (HTTP " + resp.status + ")"));
+
+    const texto = (data.letter || "").trim();
+    if (!texto) throw new Error("Empty response. Try again.");
+
+    $("output").textContent = texto;
+    $("out-panel").classList.add("show");
+    $("out-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+
+  } catch (e) {
+    erro(e.message || "Something went wrong. Try again.");
+  } finally {
+    travar(false);
+    mostrarStatus(false);
+  }
+}
+
+async function copiar() {
+  try {
+    await navigator.clipboard.writeText($("output").textContent);
+    const b = $("copy"); const o = b.textContent;
+    b.textContent = "Copied ✓";
+    setTimeout(() => (b.textContent = o), 1500);
+  } catch {
+    erro("Couldn't copy automatically — select the text and copy manually.");
+  }
+}
+
+function travar(e){ $("go").disabled = e; }
+function mostrarStatus(a){
+  $("status").innerHTML = a ? 'Writing<span class="dots"><span>.</span><span>.</span><span>.</span></span>' : "";
+}
+function erro(m){ $("err").textContent = m; }
+function limparErro(){ $("err").textContent = ""; }
+</script>
+</body>
+</html>
